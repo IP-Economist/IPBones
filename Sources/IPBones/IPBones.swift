@@ -21,48 +21,34 @@ public enum IPError: Error {
 }
 
 
-public struct AnalysisData {
-    var name: String
-    var value: Number
+public struct AnalysisData: Identifiable {
+    public var id: UUID
+    public var name: String
+    public var value: Number
     
-    public init(name: String, value: Number) {
+    public init(
+        name: String,
+        value: Number
+    ) {
+        self.id = UUID()
         self.name = name
         self.value = value
     }
 }
 
-/// functions to evaluate the cost of an object and calculate royalties
-public struct IPBones_Value {
-    /// cost of an object
-    var cost: Int?
-    /// added value
-    var addedCoefficient: Int?
-    
-    /// Data for regression analysis
-    var data: [AnalysisData]?
+
+public struct Econometrics_Engine {
+    public var data: [AnalysisData]
     
     public init(
-        cost: Int,
-        addedCoefficient: Int
-    ) {
-        self.cost = cost
-        self.addedCoefficient = addedCoefficient
-    }
-    
-    public init(
-        cost: Int,
         data: [AnalysisData]
-    ){
-        self.cost = cost
+    ) {
         self.data = data
     }
     
     /// Regression coefficients
     /// - Note: Only one regression coefficient. Only one parameter
-    private func calculateRegressionCoef() throws -> (const: Double, coef1: Double) {
-        guard let data = self.data else {
-            throw IPError.NoData("Data is absent")
-        }
+    public func regression() throws -> (const: Double, coef1: Double){
         guard data.count >= 2 else {
             throw IPError.InsufficientData("Data.count must be bigger or equal to 2")
         }
@@ -105,6 +91,35 @@ public struct IPBones_Value {
         
         return (const, coef1)
     }
+}
+
+
+
+/// functions to evaluate the cost of an object and calculate royalties
+public struct IPBones_Value {
+    /// cost of an object
+    public var cost: Int?
+    /// added value
+    public var addedCoefficient: Int?
+    
+    /// Data for regression analysis
+    public var data: [AnalysisData]?
+    
+    public init(
+        cost: Int,
+        addedCoefficient: Int
+    ) {
+        self.cost = cost
+        self.addedCoefficient = addedCoefficient
+    }
+    
+    public init(
+        cost: Int,
+        data: [AnalysisData]
+    ){
+        self.cost = cost
+        self.data = data
+    }
     
     /// Mathod created by IP-Economist
     public func method_ipEconomist() throws -> Double {
@@ -116,9 +131,12 @@ public struct IPBones_Value {
         }
         else {
             do {
-                let (const, coef1) = try self.calculateRegressionCoef()
+                guard let prepData = self.data else {
+                    throw IPError.NoData("data is absent")
+                }
+                let (const, coef1) = try Econometrics_Engine(data: prepData).regression()
                 print("REGRESSION:\nY(X) = \(const) + \(coef1)*X")
-                return Double(cost_) + (coef1 * Double(cost_) + const )
+                return Double(cost_) + abs(coef1 * Double(cost_) + const )
 
             } catch (let error){
                 throw error
@@ -135,7 +153,7 @@ public struct IPBones_Value {
 /// Calculate roylties
 public struct IPBones_Royalties {
     
-    var objectValue: Int
+    public var objectValue: Int
     
     public init(
         objectValue: Int
